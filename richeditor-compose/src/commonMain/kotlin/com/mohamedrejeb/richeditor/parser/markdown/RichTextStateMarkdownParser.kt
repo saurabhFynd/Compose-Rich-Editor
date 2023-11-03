@@ -191,17 +191,28 @@ internal object RichTextStateMarkdownParser : RichTextStateParser<String> {
         // Check if span is empty
         if (richSpan.isEmpty()) return ""
 
+        val trimmedText = richSpan.text.trim()
+        val leadingSpaces = richSpan.text.substringBefore(trimmedText)
+        val trailingSpaces = richSpan.text.substringAfter(trimmedText)
+
         // Convert span style to CSS string
-        var markdownOpen = ""
-        if ((richSpan.spanStyle.fontWeight?.weight ?: 400) > 400) markdownOpen += "**"
-        if (richSpan.spanStyle.fontStyle == FontStyle.Italic) markdownOpen += "*"
-        if (richSpan.spanStyle.textDecoration == TextDecoration.LineThrough) markdownOpen += "~~"
+        val markdownOpen = buildMarkdownOpen(richSpan.spanStyle)
+
+        val isAnyStyleApplied = markdownOpen.isNotBlank()
+
+        if(trimmedText.isNotBlank() && isAnyStyleApplied){
+            // Append leading spaces
+            stringBuilder.append(leadingSpaces)
+        }
 
         // Append markdown open
         stringBuilder.append(markdownOpen)
 
         // Apply rich span style to markdown
-        val spanMarkdown = decodeMarkdownElementFromRichSpan(richSpan.text, richSpan.style)
+        val spanMarkdown = decodeMarkdownElementFromRichSpan(
+            if(isAnyStyleApplied) trimmedText else richSpan.text,
+            richSpan.style
+        )
 
         // Append text
         stringBuilder.append(spanMarkdown)
@@ -214,7 +225,22 @@ internal object RichTextStateMarkdownParser : RichTextStateParser<String> {
         // Append markdown close
         stringBuilder.append(markdownOpen.reversed())
 
+        if(trimmedText.isNotBlank() && isAnyStyleApplied){
+            // Append trailing spaces
+            stringBuilder.append(trailingSpaces)
+        }
+
         return stringBuilder.toString()
+    }
+
+    private fun buildMarkdownOpen(spanStyle: SpanStyle): String {
+        val open = StringBuilder()
+
+        if ((spanStyle.fontWeight?.weight ?: 400) > 400) open.append("**")
+        if (spanStyle.fontStyle == FontStyle.Italic) open.append("*")
+        if (spanStyle.textDecoration == TextDecoration.LineThrough) open.append("~~")
+
+        return open.toString()
     }
 
     /**
